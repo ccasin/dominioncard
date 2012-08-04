@@ -3,6 +3,9 @@ module Handler.Home where
 
 import Import
 import Graphics.Rendering.Cairo
+import Graphics.Rendering.Pango.Font
+import Graphics.Rendering.Pango.Cairo
+import Graphics.Rendering.Pango.Layout
 import qualified Data.Text as T
 
 -- This is a handler function for the GET request method on the HomeR
@@ -44,18 +47,20 @@ getImageGenR = do
 postImageGenR :: Handler RepHtml
 postImageGenR = do
   ((result,formWidget),formEnctype) <- runFormPost cardTextForm
-  let cardText :: Text
+  let cardText :: String
       cardText = case result of
-                   FormSuccess ct -> ct
-                   _ -> "No text entered."
+                   FormSuccess ct -> T.unpack ct
+                   _ -> ""
 
       action :: Render ()
-      action = do setSourceRGBA 1 0 0 1
-                  setFontSize 20 
-                  moveTo 0 50
-                  showText $ T.unpack cardText
+      action = do moveTo 60 30
+                  fd <- liftIO $ fontDescriptionFromString "OptimusPrinceps 45"
+                  pctx <- liftIO $ cairoCreateContext Nothing
+                  lay <- liftIO $ layoutText pctx cardText
+                  liftIO $ layoutSetFontDescription lay $ Just fd
+                  showLayout lay
 
-  surf <- liftIO $ createImageSurface FormatARGB32 300 300
+  surf <- liftIO $ imageSurfaceCreateFromPNG "static/action.png"
   liftIO $ renderWith surf action
   liftIO $ surfaceWriteToPNG surf "static/crapfest.png"
 
@@ -66,7 +71,7 @@ postImageGenR = do
 
 cardTextForm :: Form Text
 cardTextForm = renderDivs $ 
-    areq textField "Card text" Nothing
+    areq textField "Card title" (Just "Title")
 
 sampleForm :: Form (FileInfo, Text)
 sampleForm = renderDivs $ (,)
