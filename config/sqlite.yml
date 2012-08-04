@@ -1,0 +1,20 @@
+Default: &defaults
+  database: DominionCard.sqlite3
+  poolsize: 10
+
+Development:
+  <<: *defaults
+
+Testing:
+  database: DominionCard_test.sqlite3
+  <<: *defaults
+
+Staging:
+  database: DominionCard_staging.sqlite3
+  poolsize: 100
+  <<: *defaults
+
+Production:
+  database: DominionCard_production.sqlite3
+  poolsize: 100
+  <<: *defaults

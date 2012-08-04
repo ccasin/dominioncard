@@ -1,4 +1,0 @@
-dominioncard
-============
-
-Dominion Card Generator

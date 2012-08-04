@@ -1,0 +1,5 @@
+
+<p>
+  <form method=post action=@{ImageGenR} enctype=#{formEnctype}>
+    ^{formWidget}
+    <input type="submit" value="Send it!">
