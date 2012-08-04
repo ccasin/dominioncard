@@ -53,10 +53,12 @@ postImageGenR = do
                    _ -> ""
 
       action :: Render ()
-      action = do moveTo 60 30
-                  fd <- liftIO $ fontDescriptionFromString "OptimusPrinceps 45"
+      action = do moveTo 40 37
+                  fd <- liftIO $ fontDescriptionFromString "OptimusPrinceps 40"
                   pctx <- liftIO $ cairoCreateContext Nothing
                   lay <- liftIO $ layoutText pctx cardText
+                  liftIO $ layoutSetWidth lay $ Just $ 507
+                  liftIO $ layoutSetAlignment lay AlignCenter
                   liftIO $ layoutSetFontDescription lay $ Just fd
                   showLayout lay
 
