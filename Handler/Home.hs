@@ -53,16 +53,18 @@ getImageGenR = do
 postImageGenR :: Handler RepHtml
 postImageGenR = do
   ((result,formWidget),formEnctype) <- runFormPost cardTextForm
-  let cardText :: String
-      cardText = case result of
-                   FormSuccess (ct,_) -> T.unpack ct
-                   _ -> "default"
+  let cardTitle, cardText, cardCost :: String
+      (cardTitle, cardText, cardCost) =
+        case result of
+          FormSuccess (title,_,text,cost) ->
+              (T.unpack title, T.unpack text, T.unpack cost)
+          _ -> ("default","default text","4")
 
       cardImagePath :: IO FilePath
       cardImagePath =
         case result of
-          FormSuccess (_, Just (FileInfo {fileName,fileContent})) ->
-            let fn = "settings/" ++ (T.unpack fileName) in
+          FormSuccess (_, Just (FileInfo {fileName,fileContent}), _, _) ->
+            let fn = "static/" ++ (T.unpack fileName) in
             do B.writeFile fn fileContent
                return fn
           _ -> return defaultImage
@@ -81,28 +83,36 @@ postImageGenR = do
            rectangle 0 0 579 892
            fill
 
-      makeTitleLayout :: IO PangoLayout
-      makeTitleLayout = 
-        do fd   <- fontDescriptionFromString "OptimusPrinceps 40"
+      -- Font Description, Width, Text
+      makeTextLayout :: String -> Double -> String -> IO PangoLayout
+      makeTextLayout font w text =
+        do fd   <- fontDescriptionFromString font
            pctx <- cairoCreateContext Nothing
-           lay  <- layoutText pctx cardText
-           layoutSetWidth lay $ Just $ 507
+           lay  <- layoutText pctx text
+           layoutSetWidth lay $ Just w
            layoutSetAlignment lay AlignCenter
            layoutSetFontDescription lay $ Just fd
            return lay
-
-
-      drawTitle :: Render ()
-      drawTitle = do moveTo 40 37
-                     lay <- liftIO makeTitleLayout
-                     showLayout lay
+      
+      drawText :: Render ()
+      drawText = do
+        layTitle <- liftIO $ makeTextLayout "OptimusPrinceps 40" 507 cardTitle
+        layText  <- liftIO $ makeTextLayout "Times 22" 482 cardText
+        layCost  <- liftIO $ makeTextLayout "OptimusPrinceps Bold 36" 32 "4"
+        moveTo 40 37
+        showLayout layTitle
+        moveTo 50 520
+        showLayout layText
+        moveTo 60 800
+        showLayout layCost
+                    
 
   -- surf <- liftIO $ imageSurfaceCreateFromPNG "static/action.png"
   -- liftIO $ renderWith surf action
   cardSurf <- liftIO $ createImageSurface FormatARGB32 579 892
   liftIO $ renderWith cardSurf drawUserImage
   liftIO $ renderWith cardSurf drawCardOverlay
-  liftIO $ renderWith cardSurf drawTitle
+  liftIO $ renderWith cardSurf drawText
   liftIO $ surfaceWriteToPNG cardSurf "static/crapfest.png"
 
   let iroute = StaticRoute ["crapfest.png"] []
@@ -110,10 +120,12 @@ postImageGenR = do
   defaultLayout $ do setTitle "Your card"
                      $(widgetFile "cardResult")
 
-cardTextForm :: Form (Text, Maybe FileInfo)
-cardTextForm = renderDivs $ (,)
+cardTextForm :: Form (Text, Maybe FileInfo, Text, Text)
+cardTextForm = renderDivs $ (,,,)
     <$> areq textField "Card title" (Just "Title")
     <*> fileAFormOpt "Choose an image"
+    <*> areq textField "Card text" (Just "Card text")
+    <*> areq textField "Card cost" (Just "4")
 
 sampleForm :: Form (FileInfo, Text)
 sampleForm = renderDivs $ (,)

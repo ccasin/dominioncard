@@ -1,7 +1,5 @@
 
 <p>
-  <img src=@{StaticR iroute}>
-
-<p>Your text was #{cardText}
+  <img src=@{StaticR iroute} width=350>
 
 <p>Hooray!
