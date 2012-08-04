@@ -16,6 +16,7 @@ import Network.Wai.Middleware.RequestLogger (logCallback, logCallbackDev)
 import qualified Database.Persist.Store
 import Database.Persist.GenericSql (runMigration)
 import Network.HTTP.Conduit (newManager, def)
+import Graphics.UI.Gtk
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
@@ -34,6 +35,7 @@ makeApplication :: AppConfig DefaultEnv Extra -> Logger -> IO Application
 makeApplication conf logger = do
     foundation <- makeFoundation conf setLogger
     app <- toWaiAppPlain foundation
+    initGUI
     return $ logWare app
   where
     setLogger = if development then logger else toProduction logger

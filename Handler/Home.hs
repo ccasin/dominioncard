@@ -6,7 +6,13 @@ import Graphics.Rendering.Cairo
 import Graphics.Rendering.Pango.Font
 import Graphics.Rendering.Pango.Cairo
 import Graphics.Rendering.Pango.Layout
+import Graphics.UI.Gtk.Gdk.Pixbuf
+import Graphics.UI.Gtk.Cairo
 import qualified Data.Text as T
+import qualified Data.ByteString.Lazy as B
+
+defaultImage :: FilePath
+defaultImage = "static/default.jpg"
 
 -- This is a handler function for the GET request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
@@ -49,31 +55,65 @@ postImageGenR = do
   ((result,formWidget),formEnctype) <- runFormPost cardTextForm
   let cardText :: String
       cardText = case result of
-                   FormSuccess ct -> T.unpack ct
-                   _ -> ""
+                   FormSuccess (ct,_) -> T.unpack ct
+                   _ -> "default"
 
-      action :: Render ()
-      action = do moveTo 40 37
-                  fd <- liftIO $ fontDescriptionFromString "OptimusPrinceps 40"
-                  pctx <- liftIO $ cairoCreateContext Nothing
-                  lay <- liftIO $ layoutText pctx cardText
-                  liftIO $ layoutSetWidth lay $ Just $ 507
-                  liftIO $ layoutSetAlignment lay AlignCenter
-                  liftIO $ layoutSetFontDescription lay $ Just fd
-                  showLayout lay
+      cardImagePath :: IO FilePath
+      cardImagePath =
+        case result of
+          FormSuccess (_, Just (FileInfo {fileName,fileContent})) ->
+            let fn = "settings/" ++ (T.unpack fileName) in
+            do B.writeFile fn fileContent
+               return fn
+          _ -> return defaultImage
 
-  surf <- liftIO $ imageSurfaceCreateFromPNG "static/action.png"
-  liftIO $ renderWith surf action
-  liftIO $ surfaceWriteToPNG surf "static/crapfest.png"
+      drawUserImage :: Render ()
+      drawUserImage =
+          do cip <- liftIO cardImagePath
+             pb <- liftIO $ pixbufNewFromFileAtScale cip 510 370 False
+             setSourcePixbuf pb 38 95
+             paint
+
+      drawCardOverlay :: Render ()
+      drawCardOverlay =
+        do overlaySurf <- liftIO $ imageSurfaceCreateFromPNG "static/action.png"
+           setSourceSurface overlaySurf 0 0
+           rectangle 0 0 579 892
+           fill
+
+      makeTitleLayout :: IO PangoLayout
+      makeTitleLayout = 
+        do fd   <- fontDescriptionFromString "OptimusPrinceps 40"
+           pctx <- cairoCreateContext Nothing
+           lay  <- layoutText pctx cardText
+           layoutSetWidth lay $ Just $ 507
+           layoutSetAlignment lay AlignCenter
+           layoutSetFontDescription lay $ Just fd
+           return lay
+
+
+      drawTitle :: Render ()
+      drawTitle = do moveTo 40 37
+                     lay <- liftIO makeTitleLayout
+                     showLayout lay
+
+  -- surf <- liftIO $ imageSurfaceCreateFromPNG "static/action.png"
+  -- liftIO $ renderWith surf action
+  cardSurf <- liftIO $ createImageSurface FormatARGB32 579 892
+  liftIO $ renderWith cardSurf drawUserImage
+  liftIO $ renderWith cardSurf drawCardOverlay
+  liftIO $ renderWith cardSurf drawTitle
+  liftIO $ surfaceWriteToPNG cardSurf "static/crapfest.png"
 
   let iroute = StaticRoute ["crapfest.png"] []
 
   defaultLayout $ do setTitle "Your card"
                      $(widgetFile "cardResult")
 
-cardTextForm :: Form Text
-cardTextForm = renderDivs $ 
-    areq textField "Card title" (Just "Title")
+cardTextForm :: Form (Text, Maybe FileInfo)
+cardTextForm = renderDivs $ (,)
+    <$> areq textField "Card title" (Just "Title")
+    <*> fileAFormOpt "Choose an image"
 
 sampleForm :: Form (FileInfo, Text)
 sampleForm = renderDivs $ (,)
