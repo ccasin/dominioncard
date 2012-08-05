@@ -14,6 +14,11 @@ import qualified Data.ByteString.Lazy as B
 defaultImage :: FilePath
 defaultImage = "static/default.jpg"
 
+data CardElement = CEText String
+                 | Gold (Maybe Int)
+
+type CardText = [CardElement]
+
 -- This is a handler function for the GET request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
 -- config/routes
@@ -47,7 +52,7 @@ postHomeR = do
 getImageGenR :: Handler RepHtml
 getImageGenR = do
   (formWidget, formEnctype) <- generateFormPost cardTextForm
-  defaultLayout $ do setTitle "Card text input"
+  defaultLayout $ do setTitle "Card input"
                      $(widgetFile "cardInput")
 
 postImageGenR :: Handler RepHtml
@@ -57,7 +62,7 @@ postImageGenR = do
       (cardTitle, cardText, cardCost) =
         case result of
           FormSuccess (title,_,text,cost) ->
-              (T.unpack title, T.unpack text, T.unpack cost)
+              (T.unpack title, T.unpack $ unTextarea text, T.unpack cost)
           _ -> ("default","default text","4")
 
       cardImagePath :: IO FilePath
@@ -97,7 +102,7 @@ postImageGenR = do
       drawText :: Render ()
       drawText = do
         layTitle <- liftIO $ makeTextLayout "OptimusPrinceps 40" 507 cardTitle
-        layText  <- liftIO $ makeTextLayout "Times 22" 482 cardText
+        layText  <- liftIO $ makeTextLayout "Times Bold 24" 482 cardText
         layCost  <- liftIO $ makeTextLayout "OptimusPrinceps Bold 36" 32 "4"
         moveTo 40 37
         showLayout layTitle
@@ -120,11 +125,11 @@ postImageGenR = do
   defaultLayout $ do setTitle "Your card"
                      $(widgetFile "cardResult")
 
-cardTextForm :: Form (Text, Maybe FileInfo, Text, Text)
+cardTextForm :: Form (Text, Maybe FileInfo, Textarea, Text)
 cardTextForm = renderDivs $ (,,,)
     <$> areq textField "Card title" (Just "Title")
     <*> fileAFormOpt "Choose an image"
-    <*> areq textField "Card text" (Just "Card text")
+    <*> areq textareaField  "Card text" (Just $ Textarea "Card text")
     <*> areq textField "Card cost" (Just "4")
 
 sampleForm :: Form (FileInfo, Text)
